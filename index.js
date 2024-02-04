@@ -1,6 +1,8 @@
 const express = require("express");
 const cors = require("cors");
 const nodemailer = require("nodemailer");
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -17,6 +19,29 @@ const transporter = nodemailer.createTransport({
         pass: "klpgpsogojexbsri",
     },
 });
+
+
+// Function to read waitlist from file
+const readWaitlistFromFile = () => {
+    const filePath = path.join(__dirname, 'waitlist.json');
+    try {
+        const data = fs.readFileSync(filePath, 'utf8');
+        return JSON.parse(data);
+    } catch (error) {
+        console.error('Error reading waitlist file:', error);
+        return [];
+    }
+};
+
+// Function to write waitlist to file
+const writeWaitlistToFile = (waitlist) => {
+    const filePath = path.join(__dirname, 'waitlist.json');
+    try {
+        fs.writeFileSync(filePath, JSON.stringify(waitlist, null, 2));
+    } catch (error) {
+        console.error('Error writing waitlist file:', error);
+    }
+};
 
 app.get("/", (req, res) => {
     res.status(200).send("Email API");
@@ -35,11 +60,21 @@ app.post("/waitlist", async (req, res) => {
     try {
         const info = await transporter.sendMail(mailOptions);
         console.log("Email sent:", info.response);
+        
+        const waitlist = readWaitlistFromFile();
+        waitlist.push({ email: userEmail });
+        writeWaitlistToFile(waitlist);
+
         return info;
     } catch (error) {
         console.error("Error sending email:", error);
         throw error;
     }
+});
+
+app.get("/waitlist", (req, res) => {
+    const waitlist = readWaitlistFromFile();
+    res.json(waitlist);
 });
 
 app.listen(port, () => {
